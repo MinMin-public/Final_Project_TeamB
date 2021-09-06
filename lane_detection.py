@@ -32,6 +32,7 @@ class LaneDetection():
         self.Gap = 50
         self.rpos_deque = collections.deque([])
         self.lpos_deque = collections.deque([])
+        self.state = "urve"
 
         rospy.init_node('auto_drive')
         #pub = rospy.Publisher('xycar_motor', xycar_motor, queue_size=1)
@@ -120,7 +121,7 @@ class LaneDetection():
     # left lines, right lines
     def divide_left_right(self, lines):
         low_slope_threshold = 0
-        high_slope_threshold = 30
+        high_slope_threshold = 20
 
         # calculate slope & filtering with threshold
         slopes = []
@@ -148,10 +149,17 @@ class LaneDetection():
 
             x1, y1, x2, y2 = Line
 
-            if (slope < 0) and (x2 < self.Width - 30):
+            if (slope < 0) and (x2 < self.Width/2):
                 left_lines.append([Line.tolist()])
-            elif (slope > 0) and (x1 > 30):
+            elif (slope > 0) and (x1 > self.Width/2):
                 right_lines.append([Line.tolist()])
+
+            if left_lines == False and right_lines == False:
+                if (slope < 0) and (self.Width <= x2 < self.Width - 5):
+                    left_lines.append([Line.tolist()])
+                elif (slope > 0) and (self.Width >= x1 > 5):
+                    right_lines.append([Line.tolist()])
+
 
         return left_lines, right_lines
 
@@ -205,19 +213,16 @@ class LaneDetection():
 
     # show image and return lpos, rpos
     def process_image(self, frame):
-        cv2.imshow("frame", frame)
+        #cv2.imshow("frame", frame)
         frame_copy = copy.deepcopy(frame)
         # blur
         kernel_size = 5
         blur = cv2.GaussianBlur(frame_copy, (kernel_size, kernel_size), 0)
 
-        #ROI set
-        roi_img = blur[self.Offset : self.Offset+self.Gap, 0:640]
-
-        #gray = cv2.cvtColor(roi_img, cv2.COLOR_BGR2GRAY)
+        gray = cv2.cvtColor(blur, cv2.COLOR_BGR2GRAY)
         
         # LAB divide
-        L, _, _ = cv2.split(cv2.cvtColor(roi_img, cv2.COLOR_BGR2LAB))
+        L, _, _ = cv2.split(cv2.cvtColor(blur, cv2.COLOR_BGR2LAB))
         # cv2.imshow("L", L)
         _, lane = cv2.threshold(L, 140, 255, cv2.THRESH_BINARY)
 
@@ -225,21 +230,47 @@ class LaneDetection():
 
         # cv2.imshow("img", img)
 
+        ROI set
+        if self.state == "curve":
+            roi_img = img[self.Offset : self.Offset+self.Gap, 0:self.Width]
+        else:
+            vertices_left = np.array([[(10, self.Gap), (30, 0), (250, 0), (270, self.Gap)]], dtype=np.int32)
+            vertices_right = np.array([[(self.Width - 270, self.Gap), (self.Width - 250, 0), (self.Width - 30, 0), (self.Width-10, self.Gap)]], dtype=np.int32)
+            roi = img[self.Offset : self.Offset+self.Gap, 0:self.Width]
+            roi_frame_left = self.ROI(roi, [vertices_left])
+            roi_frame_right = self.ROI(roi, [vertices_right])
+            roi_frame = cv2.add(roi_frame_left, roi_frame_right)
+            roi_img = np.uint8(roi_frame)
+        cv2.imshow("roi", roi_img)
+
+        # if self.state == "curve":
+        #     roi_img = gray[self.Offset : self.Offset+self.Gap, 0:self.Width]
+        # else:
+        #     vertices_left = np.array([[(10, self.Gap), (30, 0), (250, 0), (270, self.Gap)]], dtype=np.int32)
+        #     vertices_right = np.array([[(self.Width - 270, self.Gap), (self.Width - 250, 0), (self.Width - 30, 0), (self.Width-10, self.Gap)]], dtype=np.int32)
+        #     roi = gray[self.Offset : self.Offset+self.Gap, 0:self.Width]
+        #     roi_frame_left = self.ROI(roi, [vertices_left])
+        #     roi_frame_right = self.ROI(roi, [vertices_right])
+        #     roi_frame = cv2.add(roi_frame_left, roi_frame_right)
+        #     roi_img = np.uint8(roi_frame)
+        # cv2.imshow("roi", roi_img)
+
+
         # canny edge
         low_threshold = 40
         high_threshold = 70
-        edge_img = cv2.Canny(np.uint8(img), low_threshold, high_threshold)
+        edge_img = cv2.Canny(np.uint8(roi_img), low_threshold, high_threshold)
 
-        #edge_img2 = cv2.Canny(np.uint8(gray), low_threshold, high_threshold)
+        # edge_img2 = cv2.Canny(np.uint8(roi_img), low_threshold, high_threshold)
 
         cv2.imshow("edge_img", edge_img)
         #cv2.imshow("edge_img2", edge_img2)
 
-        all_lines = cv2.HoughLinesP(edge_img, 1, math.pi / 180, 45, 20, 5)
+        all_lines = cv2.HoughLinesP(edge_img, 1, math.pi / 180, 40, 20, 5)
 
         # divide left, right lines
         if all_lines is None:
-            return 0, 640
+            return frame_copy, 0, self.Width
         st = time.time()
         left_lines, right_lines = self.divide_left_right(all_lines)
         
@@ -247,37 +278,19 @@ class LaneDetection():
         frame_copy, lpos, m_left = self.get_line_pos(frame_copy, left_lines, left=True)
         frame_copy, rpos, m_right = self.get_line_pos(frame_copy, right_lines, right=True)
         #print(time.time()-st)
-        # pos weighted_moving_average
-        self.lpos_deque.append(lpos)
-        if len(self.lpos_deque) == 10:
-            lpos_avg = self.weighted_moving_average(8, self.lpos_deque)
-            lpos = lpos_avg
-            self.lpos_deque.popleft()
-        else:
-            lpos_avg = lpos
 
-        self.rpos_deque.append(rpos)
-        #print(lpos)
-        if len(self.rpos_deque) == 10:
-            rpos_avg = self.weighted_moving_average(8, self.rpos_deque)
-            rpos = rpos_avg
-            self.rpos_deque.popleft()
+        print("m_left: {}, m_right: {}".format(m_left, m_right))
+        if -0.7 < m_left < -0.55 and 0.55 < m_right < 0.7:
+            self.state = "straight"
         else:
-            rpos_avg = rpos
-        
+            self.state = "curve"
 
         # ROI
         # roi_left = edge_img[240 : 270, 200 : 240]
         # roi_right = edge_img[240 : 270, 400 : 440]
 
 
-        # vertices1 = np.array([[(10, Gap), (125, 0), (160, 0), (180, Gap)]], dtype=np.int32)
-        # vertices2 = np.array([[(Width - 190, Gap), (Width - 170, 0), (Width - 130, 0), (Width-10, Gap)]], dtype=np.int32)
-        # roi = edge_img[Offset: Offset + Gap, 0: Width]
-        # roi_frame1 = ROI(roi, [vertices1])
-        # roi_frame2 = ROI(roi, [vertices2])
-        # roi_frame = cv2.add(roi_frame1, roi_frame2)
-        # roi = np.uint8(roi_frame)
+        
 
         #cv2.imshow('roi', roi)
         #cv2.imshow('roi_left', roi_left)
@@ -292,17 +305,17 @@ class LaneDetection():
         # draw lines
         frame_copy = self.draw_lines(frame_copy, left_lines)
         frame_copy = self.draw_lines(frame_copy, right_lines)
-        frame_copy = cv2.line(frame_copy, (230, 235), (410, 235), (255, 255, 255), 2)
+        # frame_copy = cv2.line(frame_copy, (230, 235), (410, 235), (255, 255, 255), 2)
 
         # draw rectangle
-        frame_copy = self.draw_rectangle(frame_copy, lpos, rpos)
+        # frame_copy = self.draw_rectangle(frame_copy, lpos, rpos)
         # roi2 = cv2.cvtColor(roi, cv2.COLOR_GRAY2BGR)
         # roi2 = draw_rectangle(roi2, lpos, rpos)
-        cv2.imshow("frame_copy", frame_copy)
+        
         # show image
         # cv2.imshow('calibration', frame)
 
-        return lpos, rpos
+        return frame_copy, lpos, rpos
 
     def weighted_moving_average(self, n, pos_deque):
         weight, avg = 0, 0
@@ -313,21 +326,32 @@ class LaneDetection():
         return pos_avg
 
     def start(self):
-        global pub
-        global image
-        global cap
-        global Width, Height
 
-        print
-        "---------- Xycar A2 v1.0 ----------"
         rospy.sleep(0.5)
 
         while not rospy.is_shutdown():
             while not self.image.size == (640 * 480 * 3):
                 continue
-            lpos, rpos = self.process_image(self.image)
+            frame_copy, lpos, rpos = self.process_image(self.image)
+            # pos weighted_moving_average
+            self.lpos_deque.append(lpos)
+            if len(self.lpos_deque) == 10:
+                lpos_avg = self.weighted_moving_average(8, self.lpos_deque)
+                lpos = lpos_avg
+                self.lpos_deque.popleft()
+            else:
+                lpos_avg = lpos
 
-            
+            self.rpos_deque.append(rpos)
+            #print(lpos)
+            if len(self.rpos_deque) == 10:
+                rpos_avg = self.weighted_moving_average(8, self.rpos_deque)
+                rpos = rpos_avg
+                self.rpos_deque.popleft()
+            else:
+                rpos_avg = rpos
+            frame_copy = self.draw_rectangle(frame_copy, lpos, rpos)
+            cv2.imshow("frame_copy", frame_copy)
 
             # drive(pid_angle, speed)
             #cv2.imshow('x', image)

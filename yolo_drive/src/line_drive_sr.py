@@ -5,7 +5,7 @@ import rospy, rospkg
 import numpy as np
 import cv2, random, math
 from cv_bridge import CvBridge
-from xycar_msgs.msg import xycar_motor
+#from xycar_msgs.msg import xycar_motor
 from sensor_msgs.msg import Image
 from darknet_ros_msgs.msg import BoundingBoxes
 from yolo_steering import YOLO
@@ -50,7 +50,7 @@ bridge = CvBridge()
 pub = None
 Width = 640
 Height = 480
-Offset = 305		# ROI 설정 시 쓰이는 값. Offset ~ Offset+Gap 까지
+Offset = 450 #305		# ROI 설정 시 쓰이는 값. Offset ~ Offset+Gap 까지
 Gap = 40
 
 
@@ -87,11 +87,11 @@ def img_callback(data):
 def drive(Angle, Speed): 
     global pub
 
-    msg = xycar_motor()
+    #msg = xycar_motor()
     msg.angle = Angle
     msg.speed = Speed
 
-    pub.publish(msg)
+    #pub.publish(msg)
 
 
 # draw lines
@@ -268,24 +268,50 @@ def process_image(frame):
     return lpos, rpos
     
 def callback(msg):
-    print('callback')
+    #print('callback')
     global box_data
-    global flag
+    global flag, detect, previous_flag
+    global person, cat, dog, cow, Class
     box_data = msg
     yolo = YOLO()
-    flag = yolo.image_detect(box_data)
+    flag = yolo.image_detect(box_data, person, cat, dog, cow)
+    #print('flag : ', flag)
+    if flag == 'person':
+        person = False
+        flag = True
+        Class = 'person'
+    elif flag == 'cat':
+        cat = False
+        flag = True
+        Class = 'cat'
+    elif flag == 'dog':
+        dog = False
+        flag = True
+        Class = 'dog'
+    elif flag == 'cow':
+        cow = False
+        flag = True
+        Class = 'cow'
+    else:
+        flag = False
+    #previous_flag = flag
+    #print('previous_flag:', previous_flag)
+    #print(flag)
+    #print(flag, detect)
     #print(flag)
     
 def start():
     global pub
     global image
     global cap
-    global Width, Height, flag
+    global Width, Height, flag, detect, previous_flag
+    global person, cat, dog, cow, Class
+    #previous_flag = False
+    person, cat, dog, cow = True, True, True, True
     flag = False
-    detect = True
-    start_hough = False
     rospy.init_node('auto_drive')
-    pub = rospy.Publisher('xycar_motor', xycar_motor, queue_size=1)
+    rate = rospy.Rate(30)
+    #pub = rospy.Publisher('xycar_motor', xycar_motor, queue_size=1)
     image_sub = rospy.Subscriber("/usb_cam/image_raw", Image, img_callback)
     rospy.Subscriber('/darknet_ros/bounding_boxes', BoundingBoxes, callback)
 
@@ -293,8 +319,9 @@ def start():
     # speed 25 : 0.3, 0.0, 0.3 -> almost stable
     pid_c = PID(0.5, 0.0, 0.0)			# 곡선(curve)에서의 PID
     pid_s = PID(0.25, 0.0005, 0.3)		# 직선(straight)에서의 PID
-    time.sleep(30)
+    #time.sleep(30)
     while True:
+        rate.sleep()
         angle = 0
         speed = 0
         while not image.size == (640*480*3):
@@ -308,18 +335,18 @@ def start():
         #print(flag)
         #print('timesleep : 20')
         #ime.sleep(20)
-        
-        if flag and detect:
+        #print(flag, detect)
+        #print('flag : ', flag)
+        if flag:
             print('----------YOLO-----------')
-            detect = False
-            #start_hough = False
+            flag = False
             angle = prev_angle
             speed = 0
-            print('stop')
-            drive(angle, speed)
-            print('timesleep : 5')
-            time.sleep(5)
-            #start_hough = True
+            start = time.time()
+            while (time.time() - start) <= 5:
+                #drive(angle, speed)
+                print(Class)
+                print('stop 5 seconds')
         if not flag:
             if lpos == 0.0 or rpos > 630.0:			# 곡선(한쪽 차선을 검출 못하거나 오른쪽 차선이 너무 오른쪽에 있는 경우 곡선으로 가정)
                 print('----------Hough-----------')
@@ -331,17 +358,14 @@ def start():
                 angle = pid_s.pid_control(error)
                 speed = 20
                 prev_angle = angle
-        drive(angle, speed)
+        #drive(angle, speed)
 
 	# 키보드에서 q키를 누른 경우 종료
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
 
-    rospy.spin()
-
 
 if __name__ == '__main__':
-
     start()
 
 

@@ -50,7 +50,7 @@ bridge = CvBridge()
 pub = None
 Width = 640
 Height = 480
-Offset = 450 #305		# ROI 설정 시 쓰이는 값. Offset ~ Offset+Gap 까지
+Offset = 375 #305		# ROI 설정 시 쓰이는 값. Offset ~ Offset+Gap 까지
 Gap = 40
 
 
@@ -268,47 +268,37 @@ def process_image(frame):
     return lpos, rpos
     
 def callback(msg):
-    #print('callback')
     global box_data
-    global flag, detect, previous_flag
-    global person, cat, dog, cow, Class
+    global flag
+    global person, cat, Class, mode
     box_data = msg
     yolo = YOLO()
-    flag = yolo.image_detect(box_data, person, cat, dog, cow)
-    #print('flag : ', flag)
+    flag = yolo.image_detect(box_data, person, cat)
+
     if flag == 'person':
         person = False
-        flag = True
+        mode = 'yolo'
         Class = 'person'
     elif flag == 'cat':
         cat = False
-        flag = True
+        mode = 'yolo'
         Class = 'cat'
-    elif flag == 'dog':
-        dog = False
-        flag = True
-        Class = 'dog'
-    elif flag == 'cow':
-        cow = False
-        flag = True
-        Class = 'cow'
     else:
-        flag = False
-    #previous_flag = flag
-    #print('previous_flag:', previous_flag)
-    #print(flag)
-    #print(flag, detect)
-    #print(flag)
+        if person and not cat:
+            mode = 'again'
+        else:
+            mode = 'hough'
     
 def start():
     global pub
     global image
     global cap
-    global Width, Height, flag, detect, previous_flag
-    global person, cat, dog, cow, Class
-    #previous_flag = False
-    person, cat, dog, cow = True, True, True, True
+    global Width, Height, flag
+    global person, cat, Class, mode
+    mode = 'hough'
+    person, cat = True, True
     flag = False
+    prev_angle = 0
     rospy.init_node('auto_drive')
     rate = rospy.Rate(30)
     #pub = rospy.Publisher('xycar_motor', xycar_motor, queue_size=1)
@@ -328,38 +318,46 @@ def start():
             continue
 
         lpos, rpos = process_image(calibrate_image(image))
-        #print(lpos, rpos)
 
         center = (lpos + rpos) / 2
         error = -(Width/2 - center - 10)		# 직진 주행을 할 때에 중앙선보다 왼쪽에서 주행하여 임의로 +10
-        #print(flag)
-        #print('timesleep : 20')
-        #ime.sleep(20)
-        #print(flag, detect)
-        #print('flag : ', flag)
-        if flag:
-            print('----------YOLO-----------')
+
+        if mode == 'yolo':
+            print(mode)
             flag = False
             angle = prev_angle
             speed = 0
             start = time.time()
-            while (time.time() - start) <= 5:
+            while (time.time() - start) <= 2:
                 #drive(angle, speed)
                 print(Class)
                 print('stop 5 seconds')
-        if not flag:
+        elif mode == 'hough':
             if lpos == 0.0 or rpos > 630.0:			# 곡선(한쪽 차선을 검출 못하거나 오른쪽 차선이 너무 오른쪽에 있는 경우 곡선으로 가정)
-                print('----------Hough-----------')
-                angle = pid_c.pid_control(error)		# angle = error/2
-                speed = 20
-                prev_angle = angle
+                    print(mode)
+                    angle = prev_angle		# angle = error/2
+                    speed = 20
+                    prev_angle = angle
             else:						# 직선
-                print('----------Hough-----------')
+                print(mode)
                 angle = pid_s.pid_control(error)
                 speed = 20
                 prev_angle = angle
-        #drive(angle, speed)
-
+            #drive(angle, speed)
+        elif mode == 'again': #이미지 인식 다 못했을 시 한바퀴 더 도는 코드
+            print(mode)
+            if lpos == 0.0 and rpos > 630.0: #양쪽 차선을 모두 검출하지 못했을 때(교차로에서 좌회전 해야됨)
+                angle = -20 #좌회전
+                speed = 20
+            elif lpos == 0.0 or rpos > 630.0:			# 곡선(한쪽 차선을 검출 못하거나 오른쪽 차선이 너무 오른쪽에 있는 경우 곡선으로 가정)
+                    angle = prev_angle		# angle = error/2
+                    speed = 20
+                    prev_angle = angle
+            else:						# 직선
+                angle = pid_s.pid_control(error)
+                speed = 20
+                prev_angle = angle
+            #drive(angle, speed)
 	# 키보드에서 q키를 누른 경우 종료
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
@@ -367,6 +365,5 @@ def start():
 
 if __name__ == '__main__':
     start()
-
 
 

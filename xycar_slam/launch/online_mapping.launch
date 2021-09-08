@@ -3,9 +3,11 @@
 <launch>
     <param name="robot_description" textfile="$(find xycar_slam)/urdf/xycar.urdf" />
     <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" />
-    <include file="$(find xycar_lidar)/launch/lidar_noviewer.launch" />
+    <!--include file="$(find xycar_lidar)/launch/lidar_noviewer.launch" />
     <include file="$(find xycar_imu)/launch/xycar_imu_9dof_noviewer.launch" />
-    <include file="$(find joystick_cam)/launch/joy_cam.launch" />
+    <include file="$(find joystick_cam)/launch/joy_cam.launch" /-->
+    
+    <node pkg="rosbag" type="play" name="rosbag_play" required="true" args="-r 10 -l $(find xycar_slam)/lidar_camera.bag"/>
 
     <node name="cartographer_node" pkg="cartographer_ros" type="cartographer_node" args="
 	-configuration_directory $(find xycar_slam)/config 

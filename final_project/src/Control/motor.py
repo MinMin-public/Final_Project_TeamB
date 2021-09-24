@@ -14,7 +14,7 @@ class Motor():
         self.center_x = 320
         self.pid = LateralPlant(x=320.0, y=0.0, yaw=0.0, v=0.0)
 
-        self.kp = 0.4
+        self.kp = 0.38
         self.kd = 0.0005
         self.ki = 0.03
         self.dt = 0.01
@@ -42,4 +42,11 @@ class Motor():
         self.motor_msg.angle = angle
         self.motor_msg.speed = speed
         self.motor_pub.publish(self.motor_msg)
+
+    def drive_stop(self):
+        self.motor_msg.angle = 0
+        self.motor_msg.speed = 0
+        for i in range(5):
+            self.motor_pub.publish(self.motor_msg)
+            time.sleep(0.5)
 

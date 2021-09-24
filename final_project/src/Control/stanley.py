@@ -20,7 +20,7 @@ def StanleyControl(x, y, yaw, v, map_xs, map_ys, map_yaws, L, k):
     front_x = x - L * np.cos(yaw) #- 0.3
     front_y = y - L * np.sin(yaw) #- 0.2
 
-    for i in range(0, n_points, 2):
+    for i in range(0, n_points, 13):
         # calculating distance (map_xs, map_ys) - (front_x, front_y)
         dx = front_x - map_xs[i]
         dy = front_y - map_ys[i]
@@ -48,4 +48,4 @@ def StanleyControl(x, y, yaw, v, map_xs, map_ys, map_yaws, L, k):
 
     # steering
     steer = -yaw_term + cte_term
-    return steer*180/np.pi, min_index
+    return steer*180/np.pi

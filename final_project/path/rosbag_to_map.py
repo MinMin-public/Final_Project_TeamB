@@ -5,7 +5,7 @@ import tf
 from geometry_msgs.msg import PoseStamped
 
 if __name__ == '__main__':
-    bag = rosbag.Bag("/home/nvidia/xycar_ws/src/xycar_slam/src/slam.bag")
+    bag = rosbag.Bag("./path3.bag")
     path = {'x': [], 'y': [], 'yaw': []}
     for topic, msg, t in bag.read_messages(topics=['/tracked_pose']):
         path['x'].append(msg.pose.position.x)
@@ -16,5 +16,5 @@ if __name__ == '__main__':
         ])
         path['yaw'].append(yaw)
 
-    with open("reference_path_slam.pkl", "wb") as f:
+    with open("reference_path_final3.pkl", "wb") as f:
         pickle.dump(path, f)

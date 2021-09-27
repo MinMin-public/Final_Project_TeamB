@@ -1,13 +1,9 @@
 # Programmers Autonomous-Driving Dev course. Final_Project_TeamB
 [K-Digital-Training] 자율주행 최종 경진대회
 
-## Video
----
-![image](https://user-images.githubusercontent.com/65532515/134897572-cd5bc826-b7aa-4ae9-9293-1c176a6c41f7.png)
-
-
 ## Goal
 ---
+![image](https://user-images.githubusercontent.com/65532515/134897572-cd5bc826-b7aa-4ae9-9293-1c176a6c41f7.png)
 1. 직선구간
   - 출발
     - 신호등 인식하여 파란불에 출발

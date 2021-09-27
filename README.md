@@ -109,9 +109,11 @@ $ roslaunch final_project TEAM_BOLD.launch
 ### Stopline
 ![image](https://user-images.githubusercontent.com/65532515/134637921-ea0ce2f4-2841-41a2-8f3a-794d42f41662.png)
 - localization을 통한 차량의 현재위치를 구해 reference path 상의 정지선 위치에서 정차하도록 구현.
-### Traffic Light
+### Traffic Sign
 ![image](https://user-images.githubusercontent.com/65532515/134639892-8dbe0e81-a148-4a3f-915a-42c75a65f61e.png)
-- localization을 통한 차량의 현재위치를 구해 reference path 상의 신호등 위치에서 정차한 후 hsv 값을 이용하여 초록불을 인지 후 출발.
+- 신호등에서 원 3개를 인식하여, 그 중 맨 오른쪽 원(파란 불)의 명도가 높을 시 출발
+- 불이 켜진 원의 색깔을 인식하여 신호 판별.
+- 신호등에서 원의 위치를 파악하여 신호 판별.
 ### T_parking
 ![image](https://user-images.githubusercontent.com/65532515/134636638-3afb65bd-5c98-4a9f-81e9-0ddcf431cffb.png)
 - AR 태그를 인식해 차량의 yaw값을 구해 그 값에 10.0 만큼 곱한 값을 angle값을 사용하여 주차공간에 주차.
@@ -144,6 +146,9 @@ $ roslaunch final_project TEAM_BOLD.launch
 ### Obstacle Avoidance & Rotary Mission
 - 라이다의 노이즈값 (0값)이 매우 많아 장애물을 정확히 측정할 수 없는 문제가 있었음.
   - 라이다 측정값 중 0인 값을 필터링하여 해결.
+### Traffic Sign
+- 각 신호등의 위치마다 화면 밝기와 화면 상 신호등의 위치가 다른 문제점이 있었음
+  - 각 신호등마다 roi를 달리하고 화면 밝기 문제에서 사각형이 인식이 잘 안되는 문제는 opencv의 convexhull을 이용하여 해결.
 
 ## What I've learned
 ---

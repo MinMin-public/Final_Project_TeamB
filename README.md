@@ -134,6 +134,7 @@ $ roslaunch final_project TEAM_BOLD.launch
       - stanley_follower파일에서 stanley 연산을 위해 map 좌표를 넣어줄 때 모두 다 넣어주지 않고, 현재위치의 앞 뒤 일정 구간을 슬라이싱하여 넣어줌
         - stanley연산을 할 때 min_index값이 계속 같은 값으로 들어가 슬라이싱 하는 구간을 업데이트 할 수 없어 사용하지 못함.
     - 효과가 있었던 해결 방안
+    
       ![image](https://user-images.githubusercontent.com/65532515/134892345-78420557-a668-4282-8997-fc1dac7a5265.png)
       - stanley 메소드에서 map에서 현재위치와 가장 가까운 index를 계산할 때 찾는 간격을 넓혀 연산량을 줄임.
   - 오프라인 맵 환경이 수시로 달라져 정확한 localization을 하기에 어려운 환경이었음.

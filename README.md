@@ -3,6 +3,7 @@
 
 ## Video
 ---
+![image](https://user-images.githubusercontent.com/65532515/134897572-cd5bc826-b7aa-4ae9-9293-1c176a6c41f7.png)
 
 
 ## Goal
@@ -98,7 +99,7 @@ final_project
 $ roslaunch final_project TEAM_BOLD.launch
 ~~~
 
-## Procedure & Try
+## Procedure
 ---
 ### mapping
 ![image (2)](https://user-images.githubusercontent.com/65532515/134633108-9ed5957a-f9e4-4f48-b7af-3e2ac3cf81aa.png)
@@ -128,18 +129,26 @@ $ roslaunch final_project TEAM_BOLD.launch
 ![image](https://user-images.githubusercontent.com/65532515/134640778-f2e804e9-a716-4f79-8413-c2bdbe77de4c.png)
 - 라이다의 오른쪽 45° 값을 받아 1.5이하이면 차가 지나간 것으로 인식하여 출발
 
-
-## Limitations
+## Limitations & Try
 ---
-- 바닥에 비친 형광등, 기둥을 차선으로 인식하여 차선을 벗어나는 경우가 있었다. 
-  - 카메라 노출도 조정과 한쪽 차선만 검출하여 해결
-- PID 제어를 사용할 때 직선 구간에서 똑바로 가지 못함 
-  - PID값을 조절하여 P = 0.25, I = 0.0005, D = 0.25 으로 설정했을 때 가장 안정적이었음.
-- 하지만 위 PID 값을 적용했을 때, 곡선에서 차선 이탈을 하는 문제가 있었음 
-  - 곡선과 직선에서의 PID값을 따로 주어 해결 -> 곡선 P = 0.5, I = 0.0, D = 0.25 로 설정. 
+### Stanley
+- localization이 잘 되지 않아 path를 잘 따라가지 못함
+  - lua파일 파라미터 튜닝 부족과 연산량이 많았기 때문으로 추정.
+    - 시도한 방안
+      - stanley_follower파일에서 stanley 연산을 위해 map 좌표를 넣어줄 때 모두 다 넣어주지 않고, 현재위치의 앞 뒤 일정 구간을 슬라이싱하여 넣어줌
+        - stanley연산을 할 때 min_index값이 계속 같은 값으로 들어가 슬라이싱 하는 구간을 업데이트 할 수 없어 사용하지 못함.
+    - 효과가 있었던 해결 방안
+      - ![image](https://user-images.githubusercontent.com/65532515/134892345-78420557-a668-4282-8997-fc1dac7a5265.png)
+      - stanley 메소드에서 map에서 현재위치와 가장 가까운 index를 계산할 때 찾는 간격을 넓혀 연산량을 줄임.
+  - 오프라인 맵 환경이 수시로 달라져 정확한 localization을 하기에 어려운 환경이었음.
+### T-Parking
+- 차량의 yaw값을 이용하였는데, ar태그의 왼쪽, 오른쪽에 있어도 yaw값만 맞으면 주차가 잘 된것으로 인식하는 문제가 있었음.
+  - ar태그의 DX, DZ값을 이용해 arctan(DX/DZ) 만큼 각도 값으로 주어 후진하도록 수정.
+### Obstacle Avoidance & Rotary Mission
+- 라이다의 노이즈값 (0값)이 매우 많아 장애물을 정확히 측정할 수 없는 문제가 있었음.
+  - 라이다 측정값 중 0인 값을 필터링하여 해결.
 
 ## What I've learned
 ---
-- Image Processing의 다양한 Noise 해결 방법
-- hough transform을 사용한 lane detection
-- 상황에 맞게 PID와 MovingAverageFilter를 조절해서 부드러운 조향각 제어
+- SLAM을 이용한 자율주행을 경험해보니, 연산량을 줄이는 작업이 굉장히 중요하고, 파라미터 튜닝이 굉장히 중요하다는 점을 배웠다.
+- 라이다를 이용한 장애물 회피주행이나, 로터리 미션등을 수행하면서, 센서의 노이즈값을 줄이는 과정이 매우 중요하다는 점을 배웠다.
